@@ -2249,6 +2249,7 @@ dependencies = [
  "test_utils_concept",
  "test_utils_encoding",
  "tokio",
+ "tracing",
  "typeql",
 ]
 
