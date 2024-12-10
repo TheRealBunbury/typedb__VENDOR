@@ -55,9 +55,9 @@ impl Server {
     pub async fn serve(mut self) -> Result<(), tonic::transport::Error> {
         let service = typedb_protocol::type_db_server::TypeDbServer::new(self.typedb_service.take().unwrap());
         println!("Ready!");
-        let authenticator = Arc::new(Authenticator::new(self.user_manager.clone()));
+        let authenticator = Authenticator::new(self.user_manager.clone());
         Self::create_tonic_server(&self.config.server.encryption)
-            .layer(tonic::service::interceptor(move |req| authenticator.authenticate(req)))
+            .layer(&authenticator)
             .add_service(service)
             .serve(self.config.server.address)
             .await
