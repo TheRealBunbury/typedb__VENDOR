@@ -285,27 +285,27 @@ workflows:
       - test-deploy-snapshot-linux-x86_64:
           filters:
             branches:
-              only: [ "3.0" ]
+              only: [ "3.0", "bench-with-profiles-and-stats" ]
 
       - test-deploy-snapshot-linux-arm64:
           filters:
             branches:
-              only: [ "3.0" ]
+              only: [ "3.0", "bench-with-profiles-and-stats" ]
 
       - test-deploy-snapshot-mac-x86_64:
           filters:
             branches:
-              only: [ "3.0" ]
+              only: [ "3.0", "bench-with-profiles-and-stats" ]
 
       - test-deploy-snapshot-mac-arm64:
           filters:
             branches:
-              only: [ "3.0" ]
+              only: [ "3.0", "bench-with-profiles-and-stats" ]
 
       - sync-to-typedb-benchmark:
           filters:
             branches:
-              only: [ "3.0" ]
+              only: [ "3.0", "bench-with-profiles-and-stats" ]
           requires:
             - test-deploy-snapshot-linux-x86_64
   release:
