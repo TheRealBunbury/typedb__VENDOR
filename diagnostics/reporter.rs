@@ -145,14 +145,14 @@ impl Reporter {
         }
     }
 
-    fn save_disabled_reporting_file(data_directory: &PathBuf) {
+    fn save_disabled_reporting_file(data_directory: &Path) {
         let disabled_reporting_file = data_directory.join(DISABLED_REPORTING_FILE_NAME);
         if let Err(e) = fs::write(&disabled_reporting_file, Utc::now().to_string()) {
             debug!("Failed to save disabled reporting file: {}", e);
         }
     }
 
-    fn delete_disabled_reporting_file_if_exists(data_directory: &PathBuf) {
+    fn delete_disabled_reporting_file_if_exists(data_directory: &Path) {
         let disabled_reporting_file = data_directory.join(DISABLED_REPORTING_FILE_NAME);
         if let Err(e) = fs::remove_file(&disabled_reporting_file) {
             debug!("Failed to delete disabled reporting file: {}", e);
