@@ -5,27 +5,18 @@
  */
 
 use std::{
-    cell::RefCell,
-    collections::HashMap,
     fs,
-    hash::{DefaultHasher, Hash, Hasher},
-    io::{self, Write},
-    path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
-    thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::Duration,
 };
 
-use chrono::{DateTime, Timelike, Utc};
-use concurrency::{IntervalRunner, TokioIntervalRunner};
+use chrono::{Timelike, Utc};
+use concurrency::TokioIntervalRunner;
 use hyper::{
-    header::{HeaderValue, CONNECTION, CONTENT_TYPE},
-    Body, Client, Method, Request,
+    header::{CONNECTION, CONTENT_TYPE},
+    Body, Client
 };
-use hyper_rustls::HttpsConnectorBuilder;
 use logger::{debug, trace};
 use resource::constants::{
     common::SECONDS_IN_MINUTE,

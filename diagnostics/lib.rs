@@ -9,12 +9,11 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    hash::{Hash, Hasher},
+    hash::Hash,
     path::PathBuf,
-    sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::RwLock,
 };
 
-use error::TypeDBError;
 use serde_json::Value as JSONValue;
 use xxhash_rust::xxh3::Xxh3;
 
