@@ -6,7 +6,7 @@
 
 use std::{
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -15,8 +15,9 @@ use chrono::{Timelike, Utc};
 use concurrency::TokioIntervalRunner;
 use hyper::{
     header::{CONNECTION, CONTENT_TYPE},
-    Body, Client
+    Body, Client,
 };
+use hyper_rustls::HttpsConnectorBuilder;
 use logger::{debug, trace};
 use resource::constants::{
     common::SECONDS_IN_MINUTE,
