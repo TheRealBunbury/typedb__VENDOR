@@ -4,7 +4,7 @@ REM License, v. 2.0. If a copy of the MPL was not distributed with this
 REM file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 REM install dependencies needed for build
-git apply --reject --whitespace=fix .circleci\windows\git.patch
+git apply .circleci\windows\git.patch
 if %errorlevel% neq 0 (
     echo "Failed to apply patch. Regenerate it with 'git diff'. Exiting...";
     exit /b %errorlevel%
