@@ -7,12 +7,6 @@ REM needs to be called such that software installed
 REM by Chocolatey in prepare.bat is accessible
 CALL refreshenv
 
-git apply --ignore-whitespace .circleci\windows\git.patch
-if %errorlevel% neq 0 (
-    echo "Failed to apply patch. Regenerate it with 'git diff'. Exiting...";
-    exit /b %errorlevel%
-)
-
 REM build file
 cargo build --profile=release
 copy target\release\typedb_server_bin.exe  .\
