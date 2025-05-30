@@ -36,6 +36,7 @@ impl IntoResponse for HttpServiceError {
             HttpServiceError::State { typedb_source } => match typedb_source {
                 ServerStateError::Unimplemented { .. } => StatusCode::NOT_IMPLEMENTED,
                 ServerStateError::OperationNotPermitted { .. } => StatusCode::FORBIDDEN,
+                ServerStateError::DatabaseCannotBeListed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
                 ServerStateError::DatabaseDoesNotExist { .. } => StatusCode::NOT_FOUND,
                 ServerStateError::UserDoesNotExist { .. } => StatusCode::NOT_FOUND,
                 ServerStateError::UserCannotBeCreated { .. } => StatusCode::BAD_REQUEST,

@@ -257,7 +257,11 @@ impl TypeDBService {
             service.server_state.diagnostics_manager(),
             None::<&str>,
             ActionKind::DatabasesAll,
-            || async { Ok(JsonBody(encode_databases(service.server_state.databases_all().await)))},
+            || async {
+                service.server_state.databases_all().await
+                    .map(|dbs| JsonBody(encode_databases(dbs)))
+                    .map_err(|typedb_source| HttpServiceError::State { typedb_source })
+            },
         ).await
     }
 

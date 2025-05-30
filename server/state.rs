@@ -52,7 +52,7 @@ pub type BoxServerState = Box<dyn ServerState + Send + Sync>;
 
 #[async_trait]
 pub trait ServerState: Debug {
-    async fn databases_all(&self) -> Vec<String>;
+    async fn databases_all(&self) -> Result<Vec<String>, ServerStateError>;
 
     async fn databases_get(&self, name: &str) -> Option<Arc<Database<WALClient>>>;
 
@@ -300,8 +300,8 @@ impl LocalServerState {
 
 #[async_trait]
 impl ServerState for LocalServerState {
-    async fn databases_all(&self) -> Vec<String> {
-        self.database_manager.database_names()
+    async fn databases_all(&self) -> Result<Vec<String>, ServerStateError> {
+        Ok(self.database_manager.database_names())
     }
 
     async fn databases_get(&self, name: &str) -> Option<Arc<Database<WALClient>>> {
@@ -429,6 +429,7 @@ typedb_error! {
     pub ServerStateError(component = "State", prefix = "SRV") {
         Unimplemented(1, "Not implemented: {description}", description: String),
         OperationNotPermitted(2, "The user is not permitted to execute the operation"),
+        DatabaseCannotBeListed(12, "The list of databases could not be retrieved"),
         DatabaseDoesNotExist(3, "Database '{name}' does not exist.", name: String),
         UserDoesNotExist(4, "User does not exist"),
         UserCannotBeRetrieved(8, "Unable to retrieve user", typedb_source: UserGetError),

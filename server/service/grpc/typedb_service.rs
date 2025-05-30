@@ -109,12 +109,16 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
                         &message.driver_version
                     );
 
-                    Ok(Response::new(connection_open_res(
-                        generate_connection_id(),
-                        receive_time,
-                        database_all_res(&self.address, self.server_state.databases_all().await),
-                        token_create_res(token),
-                    )))
+                    self.server_state.databases_all().await
+                        .map(|dbs| {
+                            Response::new(connection_open_res(
+                                generate_connection_id(),
+                                receive_time,
+                                database_all_res(&self.address, dbs),
+                                token_create_res(token),
+                            ))
+                        })
+                        .map_err(|e| e.into_error_message().into_status())
                 }
             },
         )
@@ -164,7 +168,9 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
             None::<&str>,
             ActionKind::DatabasesAll,
             || async {
-                Ok(Response::new(database_all_res(&self.address, self.server_state.databases_all().await))) 
+                self.server_state.databases_all().await
+                    .map(|dbs| Response::new(database_all_res(&self.address, dbs)))
+                    .map_err(|e| e.into_error_message().into_status())
             }
         ).await
     }
