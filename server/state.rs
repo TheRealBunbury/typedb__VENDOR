@@ -100,8 +100,9 @@ pub trait ServerState: Debug {
 typedb_error! {
     pub ServerStateError(component = "State", prefix = "SRV") {
         Unimplemented(1, "Not implemented: {description}", description: String),
+        OperationFailedDueToReplicaUnavailability(12, "Unable to execute as one or more servers could not respond in time"),
+        OperationFailedNonPrimaryReplica(13, "Unable to execute as this server is not the primary replica"),
         OperationNotPermitted(2, "The user is not permitted to execute the operation"),
-        DatabaseCannotBeListed(12, "The list of databases could not be retrieved"),
         DatabaseDoesNotExist(3, "Database '{name}' does not exist.", name: String),
         UserDoesNotExist(4, "User does not exist"),
         UserCannotBeRetrieved(8, "Unable to retrieve user", typedb_source: UserGetError),
