@@ -52,27 +52,27 @@ pub type BoxServerState = Box<dyn ServerState + Send + Sync>;
 
 #[async_trait]
 pub trait ServerState: Debug {
-    fn databases_all(&self) -> Vec<String>;
+    async fn databases_all(&self) -> Vec<String>;
 
-    fn databases_get(&self, name: &str) -> Option<Arc<Database<WALClient>>>;
+    async fn databases_get(&self, name: &str) -> Option<Arc<Database<WALClient>>>;
 
-    fn databases_contains(&self, name: &str) -> bool;
+    async fn databases_contains(&self, name: &str) -> bool;
 
-    fn databases_create(&self, name: &str) -> Result<(), DatabaseCreateError>;
+    async fn databases_create(&self, name: &str) -> Result<(), DatabaseCreateError>;
 
-    fn database_schema(&self, name: String) -> Result<String, StateError>;
+    async fn database_schema(&self, name: String) -> Result<String, StateError>;
 
-    fn database_type_schema(&self, name: String) -> Result<String, StateError>;
+    async fn database_type_schema(&self, name: String) -> Result<String, StateError>;
 
-    fn database_delete(&self, name: &str) -> Result<(), DatabaseDeleteError>;
+    async fn database_delete(&self, name: &str) -> Result<(), DatabaseDeleteError>;
 
-    fn users_get(&self, name: &str, accessor: Accessor) -> Result<User, StateError>;
+    async fn users_get(&self, name: &str, accessor: Accessor) -> Result<User, StateError>;
 
-    fn users_all(&self, accessor: Accessor) -> Result<Vec<User>, StateError>;
+    async fn users_all(&self, accessor: Accessor) -> Result<Vec<User>, StateError>;
 
-    fn users_contains(&self, name: &str) -> Result<bool, UserGetError>;
+    async fn users_contains(&self, name: &str) -> Result<bool, UserGetError>;
 
-    fn users_create(&self, user: &User, credential: &Credential, accessor: Accessor) -> Result<(), StateError>;
+    async fn users_create(&self, user: &User, credential: &Credential, accessor: Accessor) -> Result<(), StateError>;
 
     async fn users_update(
         &self,
@@ -84,7 +84,7 @@ pub trait ServerState: Debug {
 
     async fn users_delete(&self, name: &str, accessor: Accessor) -> Result<(), StateError>;
 
-    fn user_verify_password(&self, username: &str, password: &str) -> Result<(), AuthenticationError>;
+    async fn user_verify_password(&self, username: &str, password: &str) -> Result<(), AuthenticationError>;
 
     async fn token_create(&self, username: String, password: String) -> Result<String, AuthenticationError>;
 
@@ -300,30 +300,30 @@ impl LocalServerState {
 
 #[async_trait]
 impl ServerState for LocalServerState {
-    fn databases_all(&self) -> Vec<String> {
+    async fn databases_all(&self) -> Vec<String> {
         self.database_manager.database_names()
     }
 
-    fn databases_get(&self, name: &str) -> Option<Arc<Database<WALClient>>> {
+    async fn databases_get(&self, name: &str) -> Option<Arc<Database<WALClient>>> {
         self.database_manager.database(name)
     }
 
-    fn databases_contains(&self, name: &str) -> bool {
+    async fn databases_contains(&self, name: &str) -> bool {
         self.database_manager.database(name).is_some()
     }
 
-    fn databases_create(&self, name: &str) -> Result<(), DatabaseCreateError> {
+    async fn databases_create(&self, name: &str) -> Result<(), DatabaseCreateError> {
         self.database_manager.create_database(name)
     }
 
-    fn database_schema(&self, name: String) -> Result<String, StateError> {
+    async fn database_schema(&self, name: String) -> Result<String, StateError> {
         match self.database_manager.database(&name) {
             Some(db) => Self::get_database_schema(db),
             None => Err(StateError::DatabaseDoesNotExist { name }),
         }
     }
 
-    fn database_type_schema(&self, name: String) -> Result<String, StateError> {
+    async fn database_type_schema(&self, name: String) -> Result<String, StateError> {
         match self.database_manager.database(&name) {
             None => Err(StateError::DatabaseDoesNotExist { name: name.clone() }),
             Some(database) => match Self::get_database_type_schema(database) {
@@ -333,11 +333,11 @@ impl ServerState for LocalServerState {
         }
     }
 
-    fn database_delete(&self, name: &str) -> Result<(), DatabaseDeleteError> {
+    async fn database_delete(&self, name: &str) -> Result<(), DatabaseDeleteError> {
         self.database_manager.delete_database(name)
     }
 
-    fn users_get(&self, name: &str, accessor: Accessor) -> Result<User, StateError> {
+    async fn users_get(&self, name: &str, accessor: Accessor) -> Result<User, StateError> {
         if !PermissionManager::exec_user_get_permitted(accessor.0.as_str(), name) {
             return Err(StateError::OperationNotPermitted {});
         }
@@ -351,18 +351,18 @@ impl ServerState for LocalServerState {
         }
     }
 
-    fn users_all(&self, accessor: Accessor) -> Result<Vec<User>, StateError> {
+    async fn users_all(&self, accessor: Accessor) -> Result<Vec<User>, StateError> {
         if !PermissionManager::exec_user_all_permitted(accessor.0.as_str()) {
             return Err(StateError::OperationNotPermitted {});
         }
         Ok(self.user_manager.all())
     }
 
-    fn users_contains(&self, name: &str) -> Result<bool, UserGetError> {
+    async fn users_contains(&self, name: &str) -> Result<bool, UserGetError> {
         self.user_manager.contains(name)
     }
 
-    fn users_create(&self, user: &User, credential: &Credential, accessor: Accessor) -> Result<(), StateError> {
+    async fn users_create(&self, user: &User, credential: &Credential, accessor: Accessor) -> Result<(), StateError> {
         if !PermissionManager::exec_user_create_permitted(accessor.0.as_str()) {
             return Err(StateError::OperationNotPermitted {});
         }
@@ -399,12 +399,12 @@ impl ServerState for LocalServerState {
         Ok(())
     }
 
-    fn user_verify_password(&self, username: &str, password: &str) -> Result<(), AuthenticationError> {
+    async fn user_verify_password(&self, username: &str, password: &str) -> Result<(), AuthenticationError> {
         self.credential_verifier.verify_password(username, password)
     }
 
     async fn token_create(&self, username: String, password: String) -> Result<String, AuthenticationError> {
-        self.user_verify_password(&username, &password)?;
+        self.user_verify_password(&username, &password).await?;
         Ok(self.token_manager.new_token(username).await)
     }
 

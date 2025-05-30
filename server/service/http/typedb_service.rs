@@ -253,12 +253,12 @@ impl TypeDBService {
     }
 
     async fn databases(_version: ProtocolVersion, State(service): State<Arc<TypeDBService>>) -> impl IntoResponse {
-        run_with_diagnostics(
-            &service.server_state.diagnostics_manager(),
+        run_with_diagnostics_async(
+            service.server_state.diagnostics_manager(),
             None::<&str>,
             ActionKind::DatabasesAll,
-            || Ok(JsonBody(encode_databases(service.server_state.databases_all()))),
-        )
+            || async { Ok(JsonBody(encode_databases(service.server_state.databases_all().await)))},
+        ).await
     }
 
     async fn databases_get(
@@ -266,20 +266,21 @@ impl TypeDBService {
         State(service): State<Arc<TypeDBService>>,
         database_path: DatabasePath,
     ) -> impl IntoResponse {
-        run_with_diagnostics(
-            &service.server_state.diagnostics_manager(),
+        run_with_diagnostics_async(
+            service.server_state.diagnostics_manager(),
             Some(&database_path.database_name),
             ActionKind::DatabasesGet,
-            || {
+            || async {
                 let database_name = service
                     .server_state
                     .databases_get(&database_path.database_name)
+                    .await
                     .ok_or(HttpServiceError::NotFound {})?
                     .name()
                     .to_string();
                 Ok(JsonBody(encode_database(database_name)))
             },
-        )
+        ).await
     }
 
     async fn databases_create(
@@ -287,17 +288,18 @@ impl TypeDBService {
         State(service): State<Arc<TypeDBService>>,
         database_path: DatabasePath,
     ) -> impl IntoResponse {
-        run_with_diagnostics(
-            &service.server_state.diagnostics_manager(),
+        run_with_diagnostics_async(
+            service.server_state.diagnostics_manager(),
             Some(&database_path.database_name),
             ActionKind::DatabasesCreate,
-            || {
+            || async {
                 service
                     .server_state
                     .databases_create(&database_path.database_name)
+                    .await
                     .map_err(|typedb_source| HttpServiceError::DatabaseCreate { typedb_source })
             },
-        )
+        ).await
     }
 
     async fn databases_delete(
@@ -305,17 +307,18 @@ impl TypeDBService {
         State(service): State<Arc<TypeDBService>>,
         database_path: DatabasePath,
     ) -> impl IntoResponse {
-        run_with_diagnostics(
-            &service.server_state.diagnostics_manager(),
+        run_with_diagnostics_async(
+            service.server_state.diagnostics_manager(),
             Some(&database_path.database_name),
             ActionKind::DatabaseDelete,
-            || {
+            || async {
                 service
                     .server_state
                     .database_delete(&database_path.database_name)
+                    .await
                     .map_err(|typedb_source| HttpServiceError::DatabaseDelete { typedb_source })
             },
-        )
+        ).await
     }
 
     async fn databases_schema(
@@ -323,18 +326,19 @@ impl TypeDBService {
         State(service): State<Arc<TypeDBService>>,
         database_path: DatabasePath,
     ) -> impl IntoResponse {
-        run_with_diagnostics(
-            &service.server_state.diagnostics_manager(),
+        run_with_diagnostics_async(
+            service.server_state.diagnostics_manager(),
             Some(&database_path.database_name),
             ActionKind::DatabaseSchema,
-            || {
+            || async {
                 service
                     .server_state
                     .database_schema(database_path.database_name.clone())
+                    .await
                     .map(|schema| PlainTextBody(schema))
                     .map_err(|typedb_source| HttpServiceError::State { typedb_source })
             },
-        )
+        ).await
     }
 
     async fn databases_type_schema(
@@ -342,18 +346,19 @@ impl TypeDBService {
         State(service): State<Arc<TypeDBService>>,
         database_path: DatabasePath,
     ) -> impl IntoResponse {
-        run_with_diagnostics(
-            &service.server_state.diagnostics_manager(),
+        run_with_diagnostics_async(
+            service.server_state.diagnostics_manager(),
             Some(&database_path.database_name),
             ActionKind::DatabaseTypeSchema,
-            || {
+            || async {
                 service
                     .server_state
                     .database_type_schema(database_path.database_name.clone())
+                    .await
                     .map(|schema| PlainTextBody(schema))
                     .map_err(|typedb_source| HttpServiceError::State { typedb_source })
             },
-        )
+        ).await
     }
 
     async fn users(
@@ -361,13 +366,14 @@ impl TypeDBService {
         State(service): State<Arc<TypeDBService>>,
         accessor: Accessor,
     ) -> impl IntoResponse {
-        run_with_diagnostics(&service.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersAll, || {
+        run_with_diagnostics_async(service.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersAll, || async {
             service
                 .server_state
                 .users_all(accessor)
+                .await
                 .map(|users| JsonBody(encode_users(users)))
                 .map_err(|typedb_source| HttpServiceError::State { typedb_source })
-        })
+        }).await
     }
 
     async fn users_get(
@@ -376,13 +382,14 @@ impl TypeDBService {
         accessor: Accessor,
         user_path: UserPath,
     ) -> impl IntoResponse {
-        run_with_diagnostics(&service.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersGet, || {
+        run_with_diagnostics_async(service.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersGet, || async {
             service
                 .server_state
                 .users_get(&user_path.username, accessor)
+                .await
                 .map_err(|typedb_source| HttpServiceError::State { typedb_source })
                 .map(|user| JsonBody(encode_user(&user)))
-        })
+        }).await
     }
 
     async fn users_create(
@@ -392,14 +399,15 @@ impl TypeDBService {
         user_path: UserPath,
         JsonBody(payload): JsonBody<CreateUserPayload>,
     ) -> impl IntoResponse {
-        run_with_diagnostics(&service.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersCreate, || {
+        run_with_diagnostics_async(service.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersCreate, || async {
             let user = User { name: user_path.username };
             let credential = Credential::new_password(payload.password.as_str());
             service
                 .server_state
                 .users_create(&user, &credential, accessor)
+                .await
                 .map_err(|typedb_source| HttpServiceError::State { typedb_source })
-        })
+        }).await
     }
 
     async fn users_update(
