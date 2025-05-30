@@ -44,7 +44,7 @@ use crate::{
         },
         transaction_service::TRANSACTION_REQUEST_BUFFER_SIZE,
     },
-    state::{BoxServerState, StateError},
+    state::{BoxServerState, ServerStateError},
 };
 
 #[derive(Debug)]
@@ -181,7 +181,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
             || async {
                 match self.server_state.databases_get(&name).await {
                     Some(db) => Ok(Response::new(database_get_res(&self.address, db.name().to_string()))),
-                    None => Err(StateError::DatabaseDoesNotExist { name }.into_error_message().into_status()),
+                    None => Err(ServerStateError::DatabaseDoesNotExist { name }.into_error_message().into_status()),
                 }
             }
         ).await
