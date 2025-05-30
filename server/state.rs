@@ -97,6 +97,23 @@ pub trait ServerState: Debug {
     fn shutdown_receiver(&self) -> Receiver<()>;
 }
 
+typedb_error! {
+    pub ServerStateError(component = "State", prefix = "SRV") {
+        Unimplemented(1, "Not implemented: {description}", description: String),
+        OperationNotPermitted(2, "The user is not permitted to execute the operation"),
+        DatabaseCannotBeListed(12, "The list of databases could not be retrieved"),
+        DatabaseDoesNotExist(3, "Database '{name}' does not exist.", name: String),
+        UserDoesNotExist(4, "User does not exist"),
+        UserCannotBeRetrieved(8, "Unable to retrieve user", typedb_source: UserGetError),
+        UserCannotBeCreated(9, "Unable to create user", typedb_source: UserCreateError),
+        UserCannotBeUpdated(10, "Unable to update user", typedb_source: UserUpdateError),
+        UserCannotBeDeleted(11, "Unable to delete user", typedb_source: UserDeleteError),
+        FailedToOpenPrerequisiteTransaction(5, "Failed to open transaction, which is a prerequisite for the operation."),
+        ConceptReadError(6, "Error reading concepts", typedb_source: Box<ConceptReadError>),
+        FunctionReadError(7, "Error reading functions", typedb_source: FunctionReadError),
+    }
+}
+
 #[derive(Debug)]
 pub struct LocalServerState {
     pub database_manager: Arc<DatabaseManager>,
@@ -422,22 +439,5 @@ impl ServerState for LocalServerState {
 
     fn shutdown_receiver(&self) -> Receiver<()> {
         self.shutdown_receiver.clone()
-    }
-}
-
-typedb_error! {
-    pub ServerStateError(component = "State", prefix = "SRV") {
-        Unimplemented(1, "Not implemented: {description}", description: String),
-        OperationNotPermitted(2, "The user is not permitted to execute the operation"),
-        DatabaseCannotBeListed(12, "The list of databases could not be retrieved"),
-        DatabaseDoesNotExist(3, "Database '{name}' does not exist.", name: String),
-        UserDoesNotExist(4, "User does not exist"),
-        UserCannotBeRetrieved(8, "Unable to retrieve user", typedb_source: UserGetError),
-        UserCannotBeCreated(9, "Unable to create user", typedb_source: UserCreateError),
-        UserCannotBeUpdated(10, "Unable to update user", typedb_source: UserUpdateError),
-        UserCannotBeDeleted(11, "Unable to delete user", typedb_source: UserDeleteError),
-        FailedToOpenPrerequisiteTransaction(5, "Failed to open transaction, which is a prerequisite for the operation."),
-        ConceptReadError(6, "Error reading concepts", typedb_source: Box<ConceptReadError>),
-        FunctionReadError(7, "Error reading functions", typedb_source: FunctionReadError),
     }
 }
