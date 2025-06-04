@@ -38,6 +38,8 @@ impl IntoResponse for HttpServiceError {
                 ServerStateError::OperationNotPermitted { .. } => StatusCode::FORBIDDEN,
                 ServerStateError::OperationFailedDueToReplicaUnavailability { .. } => StatusCode::INTERNAL_SERVER_ERROR,
                 ServerStateError::OperationFailedNonPrimaryReplica { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+                ServerStateError::DatabaseCannotBeCreated { .. } => StatusCode::BAD_REQUEST,
+                ServerStateError::DatabaseCannotBeDeleted { .. }  => StatusCode::BAD_REQUEST,
                 ServerStateError::DatabaseDoesNotExist { .. } => StatusCode::NOT_FOUND,
                 ServerStateError::UserDoesNotExist { .. } => StatusCode::NOT_FOUND,
                 ServerStateError::UserCannotBeCreated { .. } => StatusCode::BAD_REQUEST,
@@ -49,8 +51,6 @@ impl IntoResponse for HttpServiceError {
                 ServerStateError::FunctionReadError { .. } => StatusCode::BAD_REQUEST,
             },
             HttpServiceError::Authentication { .. } => StatusCode::UNAUTHORIZED,
-            HttpServiceError::DatabaseCreate { .. } => StatusCode::BAD_REQUEST,
-            HttpServiceError::DatabaseDelete { .. } => StatusCode::BAD_REQUEST,
             HttpServiceError::Transaction { typedb_source } => match typedb_source {
                 TransactionServiceError::DatabaseNotFound { .. } => StatusCode::NOT_FOUND,
                 TransactionServiceError::CannotCommitReadTransaction { .. } => StatusCode::BAD_REQUEST,

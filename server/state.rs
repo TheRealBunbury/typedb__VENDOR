@@ -58,13 +58,13 @@ pub trait ServerState: Debug {
 
     async fn databases_contains(&self, name: &str) -> bool;
 
-    async fn databases_create(&self, name: &str) -> Result<(), DatabaseCreateError>;
+    async fn databases_create(&self, name: &str) -> Result<(), ServerStateError>;
 
     async fn database_schema(&self, name: String) -> Result<String, ServerStateError>;
 
     async fn database_type_schema(&self, name: String) -> Result<String, ServerStateError>;
 
-    async fn database_delete(&self, name: &str) -> Result<(), DatabaseDeleteError>;
+    async fn database_delete(&self, name: &str) -> Result<(), ServerStateError>;
 
     async fn users_get(&self, name: &str, accessor: Accessor) -> Result<User, ServerStateError>;
 
@@ -104,6 +104,8 @@ typedb_error! {
         OperationFailedNonPrimaryReplica(13, "Unable to execute as this server is not the primary replica"),
         OperationNotPermitted(2, "The user is not permitted to execute the operation"),
         DatabaseDoesNotExist(3, "Database '{name}' does not exist.", name: String),
+        DatabaseCannotBeCreated(14, "Unable to create database", typedb_source: DatabaseCreateError),
+        DatabaseCannotBeDeleted(15, "Unable to delete database", typedb_source: DatabaseDeleteError),
         UserDoesNotExist(4, "User does not exist"),
         UserCannotBeRetrieved(8, "Unable to retrieve user", typedb_source: UserGetError),
         UserCannotBeCreated(9, "Unable to create user", typedb_source: UserCreateError),
@@ -330,8 +332,9 @@ impl ServerState for LocalServerState {
         self.database_manager.database(name).is_some()
     }
 
-    async fn databases_create(&self, name: &str) -> Result<(), DatabaseCreateError> {
+    async fn databases_create(&self, name: &str) -> Result<(), ServerStateError> {
         self.database_manager.create_database(name)
+            .map_err(|err| ServerStateError::DatabaseCannotBeCreated { typedb_source: err })
     }
 
     async fn database_schema(&self, name: String) -> Result<String, ServerStateError> {
@@ -351,8 +354,10 @@ impl ServerState for LocalServerState {
         }
     }
 
-    async fn database_delete(&self, name: &str) -> Result<(), DatabaseDeleteError> {
+    async fn database_delete(&self, name: &str) -> Result<(), ServerStateError> {
         self.database_manager.delete_database(name)
+            .map_err(|err| ServerStateError::DatabaseCannotBeDeleted { typedb_source: err })
+
     }
 
     async fn users_get(&self, name: &str, accessor: Accessor) -> Result<User, ServerStateError> {

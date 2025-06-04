@@ -301,7 +301,7 @@ impl TypeDBService {
                     .server_state
                     .databases_create(&database_path.database_name)
                     .await
-                    .map_err(|typedb_source| HttpServiceError::DatabaseCreate { typedb_source })
+                    .map_err(|typedb_source| HttpServiceError::State { typedb_source })
             },
         ).await
     }
@@ -320,7 +320,7 @@ impl TypeDBService {
                     .server_state
                     .database_delete(&database_path.database_name)
                     .await
-                    .map_err(|typedb_source| HttpServiceError::DatabaseDelete { typedb_source })
+                    .map_err(|typedb_source| HttpServiceError::State { typedb_source })
             },
         ).await
     }
