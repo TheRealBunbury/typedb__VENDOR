@@ -5,9 +5,9 @@
  */
 
 use std::{
-    fmt::Debug,
-    fs,
-    path::{Path, PathBuf},
+    fmt::Debug
+    ,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -22,9 +22,8 @@ use diagnostics::{diagnostics_manager::DiagnosticsManager, Diagnostics};
 use error::typedb_error;
 use ir::pipeline::FunctionReadError;
 use options::TransactionOptions;
-use rand::prelude::SliceRandom;
 use resource::{
-    constants::server::{DATABASE_METRICS_UPDATE_INTERVAL, SERVER_ID_ALPHABET, SERVER_ID_FILE_NAME, SERVER_ID_LENGTH},
+    constants::server::DATABASE_METRICS_UPDATE_INTERVAL,
     server_info::ServerInfo,
 };
 use storage::durability_client::{DurabilityClient, WALClient};
@@ -132,19 +131,11 @@ impl LocalServerState {
     pub async fn new(
         server_info: ServerInfo,
         config: Config,
+        server_id: String,
         deployment_id: Option<String>,
         shutdown_receiver: Receiver<()>,
     ) -> Result<Self, ServerOpenError> {
-        let storage_directory = &config.storage.data_directory;
-        let diagnostics_config = &config.diagnostics;
-
-        Self::may_initialise_storage_directory(storage_directory)?;
-
-        let server_id = Self::may_initialise_server_id(storage_directory)?;
-
-        let deployment_id = deployment_id.unwrap_or(server_id.clone());
-
-        let database_manager = DatabaseManager::new(storage_directory)
+        let database_manager = DatabaseManager::new(&config.storage.data_directory)
             .map_err(|err| ServerOpenError::DatabaseOpen { typedb_source: err })?;
         let system_database = initialise_system_database(&database_manager);
 
@@ -157,13 +148,14 @@ impl LocalServerState {
                 .map_err(|typedb_source| ServerOpenError::TokenConfiguration { typedb_source })?,
         );
 
+        let deployment_id = deployment_id.unwrap_or(server_id.clone());
         let diagnostics_manager = Arc::new(
             Self::initialise_diagnostics(
                 deployment_id.clone(),
                 server_id.clone(),
                 &server_info,
-                diagnostics_config,
-                storage_directory.clone(),
+                &config.diagnostics,
+                config.storage.data_directory.clone(),
                 config.development_mode.enabled,
             )
             .await,
@@ -182,59 +174,8 @@ impl LocalServerState {
             shutdown_receiver,
         })
     }
-
-    fn may_initialise_storage_directory(storage_directory: &Path) -> Result<(), ServerOpenError> {
-        debug_assert!(storage_directory.is_absolute());
-        if !storage_directory.exists() {
-            Self::create_storage_directory(storage_directory)
-        } else if !storage_directory.is_dir() {
-            Err(ServerOpenError::NotADirectory { path: storage_directory.to_str().unwrap_or("").to_owned() })
-        } else {
-            Ok(())
-        }
-    }
-
-    fn create_storage_directory(storage_directory: &Path) -> Result<(), ServerOpenError> {
-        fs::create_dir_all(storage_directory).map_err(|source| ServerOpenError::CouldNotCreateDataDirectory {
-            path: storage_directory.to_str().unwrap_or("").to_owned(),
-            source: Arc::new(source),
-        })?;
-        Ok(())
-    }
-
-    fn may_initialise_server_id(storage_directory: &Path) -> Result<String, ServerOpenError> {
-        let server_id_file = storage_directory.join(SERVER_ID_FILE_NAME);
-        if server_id_file.exists() {
-            let server_id = fs::read_to_string(&server_id_file)
-                .map_err(|source| ServerOpenError::CouldNotReadServerIDFile {
-                    path: server_id_file.to_str().unwrap_or("").to_owned(),
-                    source: Arc::new(source),
-                })?
-                .trim()
-                .to_owned();
-            if server_id.is_empty() {
-                Err(ServerOpenError::InvalidServerID { path: server_id_file.to_str().unwrap_or("").to_owned() })
-            } else {
-                Ok(server_id)
-            }
-        } else {
-            let server_id = Self::generate_server_id();
-            assert!(!server_id.is_empty(), "Generated server ID should not be empty");
-            fs::write(server_id_file.clone(), &server_id).map_err(|source| {
-                ServerOpenError::CouldNotCreateServerIDFile {
-                    path: server_id_file.to_str().unwrap_or("").to_owned(),
-                    source: Arc::new(source),
-                }
-            })?;
-            Ok(server_id)
-        }
-    }
-
-    fn generate_server_id() -> String {
-        let mut rng = rand::thread_rng();
-        (0..SERVER_ID_LENGTH).map(|_| SERVER_ID_ALPHABET.choose(&mut rng).unwrap()).collect()
-    }
-
+    
+    
     async fn initialise_diagnostics(
         deployment_id: String,
         server_id: String,

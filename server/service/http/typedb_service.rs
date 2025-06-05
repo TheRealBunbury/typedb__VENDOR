@@ -32,7 +32,7 @@ use crate::{
     authentication::Accessor,
     service::{
         http::{
-            diagnostics::{run_with_diagnostics, run_with_diagnostics_async},
+            diagnostics::run_with_diagnostics_async,
             error::HttpServiceError,
             message::{
                 authentication::{encode_token, SigninPayload},
