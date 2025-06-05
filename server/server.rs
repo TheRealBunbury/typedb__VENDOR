@@ -28,7 +28,7 @@ use tokio::{
 #[derive(Default)]
 pub struct ServerBuilder {
     server_info: Option<ServerInfo>,
-    server_state: Option<BoxServerState>,
+    server_id: String,
     shutdown_channel: Option<(Sender<()>, Receiver<()>)>,
 }
 
@@ -38,23 +38,18 @@ impl ServerBuilder {
         self
     }
 
-    pub fn server_state(mut self, server_state: BoxServerState) -> Self {
-        self.server_state = Some(server_state);
-        self
-    }
-
     pub fn shutdown_channel(mut self, shutdown_channel: (Sender<()>, Receiver<()>)) -> Self {
         self.shutdown_channel = Some(shutdown_channel);
         self
     }
 
-    pub async fn build(self, config: Config) -> Result<Server, ServerOpenError> {
+    pub async fn build(self, config: Config, server_state_builder: Option<fn(String) -> BoxServerState>) -> Result<Server, ServerOpenError> {
         Self::may_initialise_storage_directory(&config.storage.data_directory)?;
         let server_id = Self::may_initialise_server_id(&config.storage.data_directory)?;
         let server_info = self.server_info.unwrap_or(SERVER_INFO);
         let (shutdown_sender, shutdown_receiver) = self.shutdown_channel.unwrap_or_else(|| channel(()));
-        let server_state = match self.server_state {
-            Some(s) => s,
+        let server_state = match server_state_builder {
+            Some(builder) => builder(server_id),
             None => {
                 let mut server_state = LocalServerState::new(
                     SERVER_INFO, config.clone(), server_id, None, shutdown_receiver.clone()

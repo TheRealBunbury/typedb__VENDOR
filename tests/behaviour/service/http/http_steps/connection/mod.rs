@@ -55,7 +55,7 @@ pub(crate) async fn start_typedb(
             let server = ServerBuilder::default()
                 .server_info(SERVER_INFO)
                 .shutdown_channel((shutdown_sender_clone, shutdown_receiver))
-                .build(config)
+                .build(config, None)
                 .await
                 .expect("Failed to start TypeDB server");
             server.serve().await
