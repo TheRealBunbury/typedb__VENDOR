@@ -43,7 +43,7 @@ impl ServerBuilder {
         self
     }
 
-    pub async fn build(self, config: Config, server_state_builder: Option<fn(String) -> BoxServerState>) -> Result<Server, ServerOpenError> {
+    pub async fn build(self, config: Config, server_state_builder: Option<Box<dyn FnOnce(String) -> BoxServerState>>) -> Result<Server, ServerOpenError> {
         Self::may_initialise_storage_directory(&config.storage.data_directory)?;
         let server_id = Self::may_initialise_server_id(&config.storage.data_directory)?;
         let server_info = self.server_info.unwrap_or(SERVER_INFO);
