@@ -20,7 +20,9 @@ use database::{
 };
 use diagnostics::{diagnostics_manager::DiagnosticsManager, Diagnostics};
 use error::typedb_error;
+use futures::{StreamExt, TryFutureExt};
 use ir::pipeline::FunctionReadError;
+use itertools::Itertools;
 use options::TransactionOptions;
 use resource::{
     constants::server::DATABASE_METRICS_UPDATE_INTERVAL,
@@ -69,7 +71,7 @@ pub trait ServerState: Debug {
 
     async fn users_all(&self, accessor: Accessor) -> Result<Vec<User>, ServerStateError>;
 
-    async fn users_contains(&self, name: &str) -> Result<bool, UserGetError>;
+    async fn users_contains(&self, name: &str) -> Result<bool, ServerStateError>;
 
     async fn users_create(&self, user: &User, credential: &Credential, accessor: Accessor) -> Result<(), ServerStateError>;
 
@@ -83,9 +85,9 @@ pub trait ServerState: Debug {
 
     async fn users_delete(&self, name: &str, accessor: Accessor) -> Result<(), ServerStateError>;
 
-    async fn user_verify_password(&self, username: &str, password: &str) -> Result<(), AuthenticationError>;
+    async fn user_verify_password(&self, username: &str, password: &str) -> Result<(), ServerStateError>;
 
-    async fn token_create(&self, username: String, password: String) -> Result<String, AuthenticationError>;
+    async fn token_create(&self, username: String, password: String) -> Result<String, ServerStateError>;
 
     async fn token_get_owner(&self, token: &str) -> Option<String>;
 
@@ -98,6 +100,7 @@ pub trait ServerState: Debug {
 
 typedb_error! {
     pub ServerStateError(component = "State", prefix = "SRV") {
+        NotInitialised(16, "Not yet initialised"),
         Unimplemented(1, "Not implemented: {description}", description: String),
         OperationFailedDueToReplicaUnavailability(12, "Unable to execute as one or more servers could not respond in time"),
         OperationFailedNonPrimaryReplica(13, "Unable to execute as this server is not the primary replica"),
@@ -113,14 +116,15 @@ typedb_error! {
         FailedToOpenPrerequisiteTransaction(5, "Failed to open transaction, which is a prerequisite for the operation."),
         ConceptReadError(6, "Error reading concepts", typedb_source: Box<ConceptReadError>),
         FunctionReadError(7, "Error reading functions", typedb_source: FunctionReadError),
+        AuthenticationError(17, "Error when authenticating", typedb_source: AuthenticationError),
     }
 }
 
 #[derive(Debug)]
 pub struct LocalServerState {
     pub database_manager: Arc<DatabaseManager>,
-    user_manager: Arc<UserManager>,
-    credential_verifier: Arc<CredentialVerifier>,
+    user_manager: Option<Arc<UserManager>>,
+    credential_verifier: Option<Arc<CredentialVerifier>>,
     token_manager: Arc<TokenManager>,
     diagnostics_manager: Arc<DiagnosticsManager>,
     _database_diagnostics_updater: IntervalRunner,
@@ -137,15 +141,9 @@ impl LocalServerState {
     ) -> Result<Self, ServerOpenError> {
         let database_manager = DatabaseManager::new(&config.storage.data_directory)
             .map_err(|err| ServerOpenError::DatabaseOpen { typedb_source: err })?;
-        let system_database = initialise_system_database(&database_manager);
-
-        let user_manager = Arc::new(UserManager::new(system_database));
-        initialise_default_user(&user_manager);
-
-        let credential_verifier = Arc::new(CredentialVerifier::new(user_manager.clone()));
         let token_manager = Arc::new(
             TokenManager::new(config.server.authentication.token_expiration)
-                .map_err(|typedb_source| ServerOpenError::TokenConfiguration { typedb_source })?,
+                .map_err(|err| ServerOpenError::TokenConfiguration { typedb_source: err })?,
         );
 
         let deployment_id = deployment_id.unwrap_or(server_id.clone());
@@ -163,8 +161,8 @@ impl LocalServerState {
 
         Ok(Self {
             database_manager: database_manager.clone(),
-            user_manager,
-            credential_verifier,
+            user_manager: None,
+            credential_verifier: None,
             token_manager,
             diagnostics_manager: diagnostics_manager.clone(),
             _database_diagnostics_updater: IntervalRunner::new(
@@ -175,6 +173,14 @@ impl LocalServerState {
         })
     }
     
+    pub fn initialise(&mut self) {
+        let system_database = initialise_system_database(&self.database_manager);
+        let user_manager = Arc::new(UserManager::new(system_database));
+        initialise_default_user(&user_manager);
+        let credential_verifier = Some(Arc::new(CredentialVerifier::new(user_manager.clone())));
+        self.user_manager = Some(user_manager);
+        self.credential_verifier = credential_verifier;
+    }
     
     async fn initialise_diagnostics(
         deployment_id: String,
@@ -257,6 +263,20 @@ impl LocalServerState {
             .get_types_syntax(transaction.snapshot())
             .map_err(|err| ServerStateError::ConceptReadError { typedb_source: err })
     }
+
+    fn get_user_manager(&self) -> Result<Arc<UserManager>, ServerStateError> {
+        match self.user_manager.clone() {
+            Some(user_manager) => Ok(user_manager),
+            None => Err(ServerStateError::NotInitialised {})
+        }
+    }
+
+    fn get_credential_verifier(&self) -> Result<Arc<CredentialVerifier>, ServerStateError> {
+        match self.credential_verifier.clone() {
+            Some(credential_verifier) => Ok(credential_verifier),
+            None => Err(ServerStateError::NotInitialised {})
+        }
+    }
 }
 
 #[async_trait]
@@ -306,12 +326,17 @@ impl ServerState for LocalServerState {
             return Err(ServerStateError::OperationNotPermitted {});
         }
 
-        match self.user_manager.get(name) {
-            Ok(get) => match get {
-                Some((user, _)) => Ok(user),
-                None => Err(ServerStateError::UserDoesNotExist {}),
-            },
-            Err(err) => Err(ServerStateError::UserCannotBeRetrieved { typedb_source: err }),
+        match self.get_user_manager() {
+            Ok(user_manager) => {
+                match user_manager.get(name) {
+                    Ok(get) => match get {
+                        Some((user, _)) => Ok(user),
+                        None => Err(ServerStateError::UserDoesNotExist {}),
+                    },
+                    Err(err) => Err(ServerStateError::UserCannotBeRetrieved { typedb_source: err }),
+                }
+            }
+            Err(err) => Err(err)
         }
     }
 
@@ -319,21 +344,37 @@ impl ServerState for LocalServerState {
         if !PermissionManager::exec_user_all_permitted(accessor.0.as_str()) {
             return Err(ServerStateError::OperationNotPermitted {});
         }
-        Ok(self.user_manager.all())
+        
+        match self.get_user_manager() {
+            Ok(user_manager) => Ok(user_manager.all()),
+            Err(err) => Err(err)
+        }
     }
 
-    async fn users_contains(&self, name: &str) -> Result<bool, UserGetError> {
-        self.user_manager.contains(name)
+    async fn users_contains(&self, name: &str) -> Result<bool, ServerStateError> {
+        match self.get_user_manager() {
+            Ok(user_manager) => {
+                match user_manager.contains(name) {
+                    Ok(bool) => Ok(bool),
+                    Err(err) => Err(ServerStateError::UserCannotBeRetrieved { typedb_source: err })
+                }
+            },
+            Err(err) => Err(err)
+        }
     }
 
     async fn users_create(&self, user: &User, credential: &Credential, accessor: Accessor) -> Result<(), ServerStateError> {
         if !PermissionManager::exec_user_create_permitted(accessor.0.as_str()) {
             return Err(ServerStateError::OperationNotPermitted {});
         }
-        self.user_manager
-            .create(user, credential)
-            .map(|user| ())
-            .map_err(|err| ServerStateError::UserCannotBeCreated { typedb_source: err })
+        match self.get_user_manager() {
+            Ok(user_manager) => {
+                user_manager.create(user, credential)
+                    .map(|user| ())
+                    .map_err(|err| ServerStateError::UserCannotBeCreated { typedb_source: err })
+            }
+            Err(err) => Err(err)
+        }
     }
 
     async fn users_update(
@@ -346,11 +387,15 @@ impl ServerState for LocalServerState {
         if !PermissionManager::exec_user_update_permitted(accessor.0.as_str(), name) {
             return Err(ServerStateError::OperationNotPermitted {});
         }
-        self.user_manager
-            .update(name, &user_update, &credential_update)
-            .map_err(|err| ServerStateError::UserCannotBeUpdated { typedb_source: err })?;
-        self.token_manager.invalidate_user(name).await;
-        Ok(())
+        match self.get_user_manager() {
+            Ok(user_manager) => {
+                user_manager.update(name, &user_update, &credential_update)
+                    .map_err(|err| ServerStateError::UserCannotBeUpdated { typedb_source: err })?;
+                self.token_manager.invalidate_user(name).await;
+                Ok(())
+            }
+            Err(err) => Err(err)
+        }
     }
 
     async fn users_delete(&self, name: &str, accessor: Accessor) -> Result<(), ServerStateError> {
@@ -358,18 +403,31 @@ impl ServerState for LocalServerState {
             return Err(ServerStateError::OperationNotPermitted {});
         }
 
-        self.user_manager.delete(name).map_err(|err| ServerStateError::UserCannotBeDeleted { typedb_source: err })?;
-        self.token_manager.invalidate_user(name).await;
-        Ok(())
+        match self.get_user_manager() {
+            Ok(user_manager) => {
+                user_manager.delete(name).map_err(|err| ServerStateError::UserCannotBeDeleted { typedb_source: err })?;
+                self.token_manager.invalidate_user(name).await;
+                Ok(())
+            }
+            Err(err) => Err(err)
+        }
     }
 
-    async fn user_verify_password(&self, username: &str, password: &str) -> Result<(), AuthenticationError> {
-        self.credential_verifier.verify_password(username, password)
-    }
-
-    async fn token_create(&self, username: String, password: String) -> Result<String, AuthenticationError> {
+    async fn token_create(&self, username: String, password: String) -> Result<String, ServerStateError> {
         self.user_verify_password(&username, &password).await?;
         Ok(self.token_manager.new_token(username).await)
+    }
+
+    async fn user_verify_password(&self, username: &str, password: &str) -> Result<(), ServerStateError> {
+        match self.get_credential_verifier() {
+            Ok(credential_verifier) => {
+                match credential_verifier.verify_password(username, password) {
+                    Ok(()) => Ok(()),
+                    Err(err) => Err(ServerStateError::AuthenticationError { typedb_source: err })
+                }
+            },
+            Err(err) => Err(err)
+        }
     }
 
     async fn token_get_owner(&self, token: &str) -> Option<String> {

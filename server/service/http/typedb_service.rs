@@ -246,7 +246,7 @@ impl TypeDBService {
                     .token_create(payload.username, payload.password)
                     .await
                     .map(|token| JsonBody(encode_token(token)))
-                    .map_err(|typedb_source| HttpServiceError::Authentication { typedb_source })
+                    .map_err(|typedb_source| HttpServiceError::State { typedb_source })
             },
         )
         .await

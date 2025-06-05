@@ -49,6 +49,8 @@ impl IntoResponse for HttpServiceError {
                 ServerStateError::FailedToOpenPrerequisiteTransaction { .. } => StatusCode::BAD_REQUEST,
                 ServerStateError::ConceptReadError { .. } => StatusCode::BAD_REQUEST,
                 ServerStateError::FunctionReadError { .. } => StatusCode::BAD_REQUEST,
+                ServerStateError::NotInitialised { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+                ServerStateError::AuthenticationError { .. } => StatusCode::BAD_REQUEST,
             },
             HttpServiceError::Authentication { .. } => StatusCode::UNAUTHORIZED,
             HttpServiceError::Transaction { typedb_source } => match typedb_source {

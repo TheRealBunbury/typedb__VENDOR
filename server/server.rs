@@ -56,7 +56,11 @@ impl ServerBuilder {
         let server_state = match self.server_state {
             Some(s) => s,
             None => {
-                Box::new(LocalServerState::new(SERVER_INFO, config.clone(), server_id, None, shutdown_receiver.clone()).await?)
+                let mut server_state = LocalServerState::new(
+                    SERVER_INFO, config.clone(), server_id, None, shutdown_receiver.clone()
+                ).await?;
+                server_state.initialise();
+                Box::new(server_state)
             }
         };
         Ok(Server::new(server_info, config, Arc::new(server_state), shutdown_sender, shutdown_receiver))
