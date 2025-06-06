@@ -51,7 +51,7 @@ pub async fn typedb_starts(context: &mut Context) {
             let server = ServerBuilder::default()
                 .server_info(SERVER_INFO)
                 .shutdown_channel((shutdown_sender_clone, shutdown_receiver))
-                .build(config, None)
+                .build(config)
                 .await
                 .expect("Failed to start TypeDB server");
             (server_dir, Arc::new(Mutex::new(server)))

@@ -33,7 +33,7 @@ fn main() {
     initialise_logging_global(&config.logging.directory);
     may_initialise_error_reporting(&config);
     create_tokio_runtime().block_on(async {
-        let server = ServerBuilder::default().server_info(SERVER_INFO).build(config, None).await.unwrap();
+        let server = ServerBuilder::default().server_info(SERVER_INFO).build(config).await.unwrap();
         match server.serve().await {
             Ok(_) => println!("Exited."),
             Err(err) => println!("Exited with error: {:?}", err),
