@@ -20,15 +20,17 @@ use resource::{
 };
 use std::path::Path;
 use std::{fs, net::SocketAddr, sync::Arc};
+use std::future::Future;
 use tokio::{
     net::lookup_host,
     sync::watch::{channel, Receiver, Sender},
 };
+use std::pin::Pin;
 
 #[derive(Default)]
 pub struct ServerBuilder {
     server_info: Option<ServerInfo>,
-    server_state_builder: Option<Box<dyn FnOnce(String) -> BoxServerState>>,
+    server_state_builder: Option<Box<dyn FnOnce(String) -> Pin<Box<dyn Future<Output = BoxServerState>>>>>,
     shutdown_channel: Option<(Sender<()>, Receiver<()>)>,
 }
 
@@ -37,8 +39,8 @@ impl ServerBuilder {
         self.server_info = Some(server_info);
         self
     }
-    
-    pub fn server_state_builder(mut self, server_state_builder: Option<Box<dyn FnOnce(String) -> BoxServerState>>) -> Self {
+
+    pub fn server_state_builder(mut self, server_state_builder: Option<Box<dyn FnOnce(String) -> Pin<Box<dyn Future<Output = BoxServerState>>>>>) -> Self {
         self.server_state_builder = server_state_builder;
         self
     }
@@ -54,7 +56,7 @@ impl ServerBuilder {
         let server_info = self.server_info.unwrap_or(SERVER_INFO);
         let (shutdown_sender, shutdown_receiver) = self.shutdown_channel.unwrap_or_else(|| channel(()));
         let server_state = match self.server_state_builder {
-            Some(builder) => builder(server_id),
+            Some(builder) => builder(server_id).await,
             None => {
                 let mut server_state = LocalServerState::new(
                     SERVER_INFO, config.clone(), server_id, None, shutdown_receiver.clone()
