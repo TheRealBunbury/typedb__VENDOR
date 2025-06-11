@@ -312,7 +312,7 @@ impl Server {
             .map_err(|_| ServerOpenError::HttpTlsUnsetDefaultCryptoProvider {})
     }
 
-    pub fn database_manager(&self) -> Arc<DatabaseManager> {
-        self.server_state.database_manager()
+    pub async fn database_manager(&self) -> Arc<DatabaseManager> {
+        self.server_state.database_manager().await
     }
 }

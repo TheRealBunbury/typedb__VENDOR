@@ -91,11 +91,11 @@ pub trait ServerState: Debug {
 
     async fn token_get_owner(&self, token: &str) -> Option<String>;
 
-    fn database_manager(&self) -> Arc<DatabaseManager>;
+    async fn database_manager(&self) -> Arc<DatabaseManager>;
 
-    fn diagnostics_manager(&self) -> Arc<DiagnosticsManager>;
+    async fn diagnostics_manager(&self) -> Arc<DiagnosticsManager>;
 
-    fn shutdown_receiver(&self) -> Receiver<()>;
+    async fn shutdown_receiver(&self) -> Receiver<()>;
 }
 
 typedb_error! {
@@ -434,15 +434,15 @@ impl ServerState for LocalServerState {
         self.token_manager.get_valid_token_owner(token).await
     }
 
-    fn database_manager(&self) -> Arc<DatabaseManager> {
+    async fn database_manager(&self) -> Arc<DatabaseManager> {
         self.database_manager.clone()
     }
 
-    fn diagnostics_manager(&self) -> Arc<DiagnosticsManager> {
+    async fn diagnostics_manager(&self) -> Arc<DiagnosticsManager> {
         self.diagnostics_manager.clone()
     }
 
-    fn shutdown_receiver(&self) -> Receiver<()> {
+    async fn shutdown_receiver(&self) -> Receiver<()> {
         self.shutdown_receiver.clone()
     }
 }

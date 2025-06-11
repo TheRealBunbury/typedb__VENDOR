@@ -67,7 +67,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         request: Request<typedb_protocol::connection::open::Req>,
     ) -> Result<Response<typedb_protocol::connection::open::Res>, Status> {
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             None::<&str>,
             ActionKind::ConnectionOpen,
             || async {
@@ -131,7 +131,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         request: Request<typedb_protocol::authentication::token::create::Req>,
     ) -> Result<Response<typedb_protocol::authentication::token::create::Res>, Status> {
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             None::<&str>,
             ActionKind::SignIn,
             || async {
@@ -154,9 +154,9 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
     }
 
     async fn servers_all(&self, _request: Request<Req>) -> Result<Response<Res>, Status> {
-        run_with_diagnostics(&self.server_state.diagnostics_manager(), None::<&str>, ActionKind::ServersAll, || {
+        run_with_diagnostics_async(self.server_state.diagnostics_manager().await, None::<&str>, ActionKind::ServersAll, || async {
             Ok(Response::new(servers_all_res(&self.address)))
-        })
+        }).await
     }
 
     async fn databases_all(
@@ -164,7 +164,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         _request: Request<typedb_protocol::database_manager::all::Req>,
     ) -> Result<Response<typedb_protocol::database_manager::all::Res>, Status> {
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             None::<&str>,
             ActionKind::DatabasesAll,
             || async {
@@ -181,7 +181,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
     ) -> Result<Response<typedb_protocol::database_manager::get::Res>, Status> {
         let name = request.into_inner().name;
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             Some(name.clone()),
             ActionKind::DatabasesGet,
             || async {
@@ -199,7 +199,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
     ) -> Result<Response<typedb_protocol::database_manager::contains::Res>, Status> {
         let name = request.into_inner().name;
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             Some(name.clone()),
             ActionKind::DatabasesContains,
             || async {
@@ -214,7 +214,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
     ) -> Result<Response<typedb_protocol::database_manager::create::Res>, Status> {
         let name = request.into_inner().name;
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             Some(name.clone()),
             ActionKind::DatabasesCreate,
             || async {
@@ -233,7 +233,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
     ) -> Result<Response<typedb_protocol::database::schema::Res>, Status> {
         let name = request.into_inner().name;
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             Some(name.clone()),
             ActionKind::DatabaseSchema,
             || async {
@@ -251,7 +251,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
     ) -> Result<Response<typedb_protocol::database::type_schema::Res>, Status> {
         let name = request.into_inner().name;
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             Some(name.clone()),
             ActionKind::DatabaseTypeSchema,
             || async {
@@ -269,7 +269,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
     ) -> Result<Response<typedb_protocol::database::delete::Res>, Status> {
         let name = request.into_inner().name;
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             Some(name.clone()),
             ActionKind::DatabaseDelete,
             || async {
@@ -286,7 +286,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         &self,
         request: Request<typedb_protocol::user_manager::get::Req>,
     ) -> Result<Response<typedb_protocol::user_manager::get::Res>, Status> {
-        run_with_diagnostics_async(self.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersGet, || async {
+        run_with_diagnostics_async(self.server_state.diagnostics_manager().await, None::<&str>, ActionKind::UsersGet, || async {
             let accessor = Accessor::from_extensions(&request.extensions())
                 .map_err(|err| err.into_error_message().into_status())?;
             let name = request.into_inner().name;
@@ -302,7 +302,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         &self,
         request: Request<typedb_protocol::user_manager::all::Req>,
     ) -> Result<Response<typedb_protocol::user_manager::all::Res>, Status> {
-        run_with_diagnostics_async(self.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersAll, || async {
+        run_with_diagnostics_async(self.server_state.diagnostics_manager().await, None::<&str>, ActionKind::UsersAll, || async {
             let accessor = Accessor::from_extensions(&request.extensions())
                 .map_err(|err| err.into_error_message().into_status())?;
             self.server_state
@@ -317,7 +317,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         &self,
         request: Request<typedb_protocol::user_manager::contains::Req>,
     ) -> Result<Response<typedb_protocol::user_manager::contains::Res>, Status> {
-        run_with_diagnostics_async(self.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersContains, || async {
+        run_with_diagnostics_async(self.server_state.diagnostics_manager().await, None::<&str>, ActionKind::UsersContains, || async {
             let name = request.into_inner().name;
             self.server_state
                 .users_contains(name.as_str())
@@ -331,7 +331,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         &self,
         request: Request<typedb_protocol::user_manager::create::Req>,
     ) -> Result<Response<typedb_protocol::user_manager::create::Res>, Status> {
-        run_with_diagnostics_async(self.server_state.diagnostics_manager(), None::<&str>, ActionKind::UsersCreate, || async {
+        run_with_diagnostics_async(self.server_state.diagnostics_manager().await, None::<&str>, ActionKind::UsersCreate, || async {
             let accessor = Accessor::from_extensions(&request.extensions())
                 .map_err(|err| err.into_error_message().into_status())?;
             let (user, credential) = users_create_req(request).map_err(|err| err.into_error_message().into_status())?;
@@ -348,7 +348,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         request: Request<typedb_protocol::user::update::Req>,
     ) -> Result<Response<typedb_protocol::user::update::Res>, Status> {
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             None::<&str>,
             ActionKind::UsersUpdate,
             || async {
@@ -372,7 +372,7 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         request: Request<typedb_protocol::user::delete::Req>,
     ) -> Result<Response<typedb_protocol::user::delete::Res>, Status> {
         run_with_diagnostics_async(
-            self.server_state.diagnostics_manager(),
+            self.server_state.diagnostics_manager().await,
             None::<&str>,
             ActionKind::UsersDelete,
             || async {
@@ -400,9 +400,9 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         let mut service = TransactionService::new(
             request_stream,
             response_sender,
-            self.server_state.database_manager(),
-            self.server_state.diagnostics_manager(),
-            self.server_state.shutdown_receiver(),
+            self.server_state.database_manager().await,
+            self.server_state.diagnostics_manager().await,
+            self.server_state.shutdown_receiver().await,
         );
         tokio::spawn(async move { service.listen().await });
         let stream: ReceiverStream<Result<Server, Status>> = ReceiverStream::new(response_receiver);
