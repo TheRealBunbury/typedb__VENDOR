@@ -33,7 +33,11 @@ use crate::{
                     database_all_res, database_contains_res, database_create_res, database_get_res,
                     database_schema_res, database_type_schema_res,
                 },
-                server_manager::servers_all_res,
+                server_manager::{
+                    servers_all_res,
+                    servers_deregister_res,
+                    servers_register_res,
+                },
                 user_manager::{
                     user_create_res, user_update_res, users_all_res, users_contains_res, users_delete_res,
                     users_get_res,
@@ -157,6 +161,50 @@ impl typedb_protocol::type_db_server::TypeDb for TypeDBService {
         run_with_diagnostics_async(self.server_state.diagnostics_manager().await, None::<&str>, ActionKind::ServersAll, || async {
             Ok(Response::new(servers_all_res(&self.address)))
         }).await
+    }
+
+    async fn servers_register(
+        &self,
+        request: Request<typedb_protocol::server_manager::register::Req>,
+    ) -> Result<Response<typedb_protocol::server_manager::register::Res>, Status> {
+        run_with_diagnostics_async(
+            self.server_state.diagnostics_manager().await,
+            None::<&str>,
+            ActionKind::ServersRegister,
+            || async {
+                let request = request.into_inner();
+                let Some(typedb_protocol::Server { clustering_id, address }) = request.server else {
+                    return Err(ProtocolError::MissingField {
+                        name: "authentication",
+                        description: "Connection message must contain authentication information.",
+                    }.into_status());
+                };
+                self.server_state
+                    .servers_register(clustering_id, address)
+                    .await
+                    .map(|()| Response::new(servers_register_res()))
+                    .map_err(|typedb_source| typedb_source.into_error_message().into_status())
+            }
+        ).await
+    }
+
+    async fn servers_deregister(
+        &self,
+        request: Request<typedb_protocol::server_manager::deregister::Req>,
+    ) -> Result<Response<typedb_protocol::server_manager::deregister::Res>, Status> {
+        run_with_diagnostics_async(
+            self.server_state.diagnostics_manager().await,
+            None::<&str>,
+            ActionKind::ServersDeregister,
+            || async {
+                let request = request.into_inner();
+                self.server_state
+                    .servers_deregister(request.clustering_id)
+                    .await
+                    .map(|()| Response::new(servers_deregister_res()))
+                    .map_err(|typedb_source| typedb_source.into_error_message().into_status())
+            }
+        ).await
     }
 
     async fn databases_all(

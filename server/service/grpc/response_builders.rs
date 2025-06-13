@@ -36,8 +36,16 @@ pub(crate) mod server_manager {
 
     pub(crate) fn servers_all_res(address: &SocketAddr) -> typedb_protocol::server_manager::all::Res {
         typedb_protocol::server_manager::all::Res {
-            servers: vec![typedb_protocol::Server { address: address.to_string() }],
+            servers: vec![typedb_protocol::Server { clustering_id: 0, address: address.to_string() }], // todo
         }
+    }
+
+    pub(crate) fn servers_register_res() -> typedb_protocol::server_manager::register::Res {
+        typedb_protocol::server_manager::register::Res {}
+    }
+
+    pub(crate) fn servers_deregister_res() -> typedb_protocol::server_manager::deregister::Res {
+        typedb_protocol::server_manager::deregister::Res {}
     }
 }
 

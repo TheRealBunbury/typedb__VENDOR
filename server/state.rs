@@ -53,6 +53,10 @@ pub type BoxServerState = Box<dyn ServerState + Send + Sync>;
 
 #[async_trait]
 pub trait ServerState: Debug {
+    async fn servers_register(&self, clustering_id: u64, address: String) -> Result<(), ServerStateError>;
+    
+    async fn servers_deregister(&self, clustering_id: u64) -> Result<(), ServerStateError>;
+    
     async fn databases_all(&self) -> Result<Vec<String>, ServerStateError>;
 
     async fn databases_get(&self, name: &str) -> Option<Arc<Database<WALClient>>>;
@@ -281,6 +285,20 @@ impl LocalServerState {
 
 #[async_trait]
 impl ServerState for LocalServerState {
+    async fn servers_register(&self, clustering_id: u64, address: String) -> Result<(), ServerStateError> {
+        // todo: error message
+        Err(
+            ServerStateError::Unimplemented { description: "This functionality is not available".to_string() }
+        )
+    }
+    
+    async fn servers_deregister(&self, clustering_id: u64) -> Result<(), ServerStateError> {
+        // todo: error message
+        Err(
+            ServerStateError::Unimplemented { description: "This functionality is not available".to_string() }
+        )
+    }
+
     async fn databases_all(&self) -> Result<Vec<String>, ServerStateError> {
         Ok(self.database_manager.database_names())
     }
